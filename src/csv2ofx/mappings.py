@@ -62,7 +62,7 @@
         Category: the category.  Imports as the expense account usually.
         Class: optional class data.  Return '' if unused
         Amount: transaction amount
-        Number: check number 
+        Number: check number
 
     mapping dict format
     {'_params':<special parameters>, 'QIF':<the qif mapping>, 'OFX':<the ofx mapping>}
@@ -76,7 +76,7 @@
 """
 
 from csvutils import *
-
+import re
 
 def yodlee_dscr(row,grid):
     " use user description for payee 1st, the original description"
@@ -98,19 +98,26 @@ def toOFXDate(date):
     yearlen=len(date.split('/')[-1])
     return datetime.strptime(date,yearlen==2 and '%m/%d/%y' or '%m/%d/%Y').strftime('%Y%m%d')
 
+def formatAmount(_num):
+    remove_dollar_sign = re.sub(r'\$', '', _num)
+    remove_end_bracket = re.sub(r'\)', '', remove_dollar_sign)
+    replace_start_bracket = re.sub(r'\(', '-', remove_end_bracket)
+    remove_commas = re.sub(r',', '', replace_start_bracket)
+    return remove_commas
+
 yodlee = {
 
     'OFX':{
         'skip':lambda row,grid: fromCSVCol(row,grid,'Split Type') == 'Split',
         'BANKID':lambda row,grid: fromCSVCol(row,grid,'Account Name').split(' - ')[0],
-        'ACCTID':lambda row,grid: fromCSVCol(row,grid,'Account Name').split(' - ')[-1], 
+        'ACCTID':lambda row,grid: fromCSVCol(row,grid,'Account Name').split(' - ')[-1],
         'DTPOSTED':lambda row,grid: toOFXDate(fromCSVCol(row,grid,'Date')),
         'TRNAMT':lambda row,grid: fromCSVCol(row,grid,'Amount'),
         'FITID':lambda row,grid: fromCSVCol(row,grid,'Transaction Id'),
         'PAYEE':lambda row,grid: yodlee_dscr(row,grid),
         'MEMO':lambda row,grid: yodlee_memo(row,grid),
         'CURDEF':lambda row,grid: fromCSVCol(row,grid,'Currency'),
-        'CHECKNUM':lambda row,grid: fromCSVCol(row,grid,'Transaction Id') 
+        'CHECKNUM':lambda row,grid: fromCSVCol(row,grid,'Transaction Id')
     },
     'QIF':{
         'split':lambda row,grid: fromCSVCol(row,grid,'Split Type') == 'Split',
@@ -120,8 +127,9 @@ yodlee = {
         'Payee':lambda row,grid: fromCSVCol(row,grid,'Original Description'),
         'Memo':lambda row,grid: fromCSVCol(row,grid,'User Description') + ' ' + fromCSVCol(row,grid,'Memo'),
         'Category':lambda row,grid: fromCSVCol(row,grid,'Category')+'-'+fromCSVCol(row,grid,'Classification'),
-        'Class':lambda row,grid: '', 
-        'Amount':lambda row,grid: fromCSVCol(row,grid,'Amount'),
+        'Class':lambda row,grid: '',
+        'Amount': lambda row, grid: formatAmount(fromCSVCol(row,grid,'Amount')),
+#        'Amount':lambda row,grid: fromCSVCol(row,grid,'Amount'),
         'Number':lambda row,grid: fromCSVCol(row,grid,'Transaction Id')
     }
 }
@@ -148,8 +156,9 @@ cu = {
         'Memo':lambda row,grid: fromCSVCol(row,grid,'Comments'),
         'Category':lambda row,grid:'Unclassified',
         'Class':lambda row,grid:'',
-        'Amount':lambda row,grid:fromCSVCol(row,grid,'Amount'),
-        'Number':lambda row,grid:fromCSVCol(row,grid,'Check Number')        
+        'Amount': lambda row, grid: formatAmount(fromCSVCol(row,grid,'Amount')),
+        # 'Amount':lambda row,grid:fromCSVCol(row,grid,'Amount'),
+        'Number':lambda row,grid:fromCSVCol(row,grid,'Check Number')
     }
 }
 
@@ -213,7 +222,7 @@ ubs = {
         'Category':lambda row,grid:'Unclassified',
         'Class':lambda row,grid:'',
         'Amount':lambda row,grid: ubs_toAmount(fromCSVCol(row,grid,'Debit'),fromCSVCol(row,grid,'Credit')),
-        'Number':lambda row,grid: ''        
+        'Number':lambda row,grid: ''
     }
 }
 
